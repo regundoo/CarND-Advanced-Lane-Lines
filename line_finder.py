@@ -244,7 +244,8 @@ i = 0
 #for i in range(len(imagelist)):
 #    image = mpimg.imread(os.path.join(dirname, imagelist[i]))
 #    imshape = image.shape
-#    processimages(image)
+#
+processimages(image)
 
     # print('image:',imagelist[i],' is:', type(image), 'with dimensions:', image.shape)
 
