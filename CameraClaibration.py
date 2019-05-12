@@ -1,91 +1,74 @@
-import pickle
-from glob import glob
-
-import cv2
 import numpy as np
-from tqdm import tqdm
+import cv2
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import os
+import glob
+import pickle
 
-Rows = 6
-Cols = 9
-image_size = (720, 1280, 3)
-cal_points = False
-imagePath = '/camera_cal/calibration*.jpg'
-calOutput = '/camera_cal/calMatrix.p'
+#prepare opject points
+nx = 6
+ny = 9
 
-def calculateCalibration(pattern, rows, cols):
+CAL_IMAGE_SIZE = (720, 1280, 3)
+CALC_CAL_POINTS = False
+CalPathImages = 'camera_cal/calibration*.jpg'
+CALIBRATION_PATH = 'camera_cal/calibration.p'
+
+# Make a list of calibration images
+#imagelist = os.listdir("camera_cal/")
+#dirname = 'camera_cal/'
+#print(imagelist)
+
+#img = mpimg.imread(os.path.join(dirname, imagelist[12]))
+#img = cv2.imread(fname)
 
 
-    objp = np.zeros((rows * cols, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2)
+def calulateCalibration(CalPathImages, nx, ny):
+    objpoints = []  # 3D points in real world space
+    imgpoints = []  # 2D points in image plane
 
-    objpoints = []
-    imgpoints = []
+    objp = np.zeros((nx * ny, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:ny, 0:nx].T.reshape(-1, 2)
 
-    images = glob(pattern)
-    cal_images = np.zeros((len(images), *CAL_IMAGE_SIZE), dtype=np.uint8)
+    images = glob.glob(CalPathImages)
+    print(images)
 
-    successfull_cnt = 0
+    for fname in images:
+        img = mpimg.imread(fname)
 
-    for idx, fname in enumerate(tqdm(images, desc='Processing image')):
-        img = imread(fname)
-        if img.shape[0] != CAL_IMAGE_SIZE[0] or img.shape[1] != CAL_IMAGE_SIZE[1]:
-            img = imresize(img, CAL_IMAGE_SIZE)
+        # convert to gray
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        ret, corners = cv2.findChessboardCorners(gray, (cols, rows), None)
+        # Find the Chessboard corners
+        ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
+        print(ret)
+        print(corners)
 
-        if ret:
-            successfull_cnt += 1
-
-            objpoints.append(objp)
+        # if found, draw corners
+        if ret == True:
+            cv2.drawChessboardCorners(img, (nx,ny), corners, ret)
             imgpoints.append(corners)
+            objpoints.append(objp)
+            #plt.imshow(img)
+            #plt.show()
 
-            img = cv2.drawChessboardCorners(img, (cols, rows), corners, ret)
-            cal_images[idx] = img
-
-    print("%s/%s camera calibration images processed." % (successfull_cnt, len(images)))
-
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, image_size[:-1], None, None)
-
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, CAL_IMAGE_SIZE[:-1], None, None)
     calibration = {'objpoints': objpoints,
-                   'imgpoints': imgpoints,
-                   'cal_images': cal_images,
-                   'mtx': mtx,
-                   'dist': dist,
-                   'rvecs': rvecs,
-                   'tvecs': tvecs}
-
-    return calibration
-
-def get_camera_calibration():
-    """
-    Depending on the constant CALC_CAL_POINTS the camera calibration will be
-    calculated and stored on disk or loaded.
-    """
-    if CALC_CAL_POINTS:
-        calibration = calculateCalibration(imagePath, ROWS, COLS)
-        with open(calOutput, 'wb') as f:
-            pickle.dump(calibration, file=f)
-    else:
-        with open(calOutput, "rb") as f:
-            calibration = pickle.load(f)
+                       'imgpoints': imgpoints,
+                       'cal_images': objp,
+                       'mtx': mtx,
+                       'dist': dist,
+                       'rvecs': rvecs,
+                       'tvecs': tvecs}
 
     return calibration
 
 
-class CameraCalibrator:
-    def __init__(self, image_shape, calibration):
-        """
-        Helper class to remove lens distortion from images
-        :param image_shape: with and height of the image
-        :param calibration: calibration object which can be retrieved from "get_camera_calibration()"
-        """
-        self.objpoints = calibration['objpoints']
-        self.imgpoints = calibration['imgpoints']
-        self.image_shape = image_shape
+def storeCameraCalibration():
+    calibration = calulateCalibration(CalPathImages, nx, ny)
+    with open(CALIBRATION_PATH, 'wb') as f:
+        pickle.dump(calibration, file=f)
 
-        self.ret, self.mtx, self.dist, self.rvecs, self.tvecs = \
-            cv2.calibrateCamera(self.objpoints, self.imgpoints, image_shape, None, None)
+    return calibration
 
-    def undistort(self, img):
-        return cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
