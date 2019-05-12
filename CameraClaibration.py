@@ -11,17 +11,9 @@ nx = 6
 ny = 9
 
 CAL_IMAGE_SIZE = (720, 1280, 3)
-CALC_CAL_POINTS = False
+CALC_CAL_POINTS = True
 CalPathImages = 'camera_cal/calibration*.jpg'
 CALIBRATION_PATH = 'camera_cal/calibration.p'
-
-# Make a list of calibration images
-#imagelist = os.listdir("camera_cal/")
-#dirname = 'camera_cal/'
-#print(imagelist)
-
-#img = mpimg.imread(os.path.join(dirname, imagelist[12]))
-#img = cv2.imread(fname)
 
 
 def calulateCalibration(CalPathImages, nx, ny):
@@ -66,9 +58,25 @@ def calulateCalibration(CalPathImages, nx, ny):
 
 
 def storeCameraCalibration():
-    calibration = calulateCalibration(CalPathImages, nx, ny)
-    with open(CALIBRATION_PATH, 'wb') as f:
-        pickle.dump(calibration, file=f)
+
+    if CALC_CAL_POINTS:
+        calibration = calulateCalibration(CalPathImages, nx, ny)
+        with open(CALIBRATION_PATH, 'wb') as f:
+            pickle.dump(calibration, file=f)
+    else:
+        with open(CALIBRATION_PATH, "rb") as f:
+            calibration = pickle.load(f)
 
     return calibration
 
+class CameraCalibrator:
+    def __init__(self, image_size, calibration):
+
+        self.objpoints = calibration['objpoints']
+        self.imgpoints = calibration['imgpoints']
+        self.image_size = image_size
+
+        self.ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv2.calibrateCamera(self.objpoints, self.imgpoints, image_size, None, None)
+
+    def undistort(self, img):
+        return cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
