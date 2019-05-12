@@ -14,16 +14,6 @@ import math
 import os
 
 
-#reading in an image
-image = mpimg.imread('test_images/test1.jpg')
-
-#printing out some stats and plotting
-print('This image is:', type(image), 'with dimensions:', image.shape)
-plt.imshow(image)
-plt.show()
-print("Test")
-
-
 class LaneFinder:
     def grayscale(img):
         # Nothing changed here
@@ -177,38 +167,7 @@ class LaneFinder:
         return cv2.addWeighted(initial_img, α, img, β, γ)
 
 
-    os.listdir("test_images/")
 
-    # Build your pipeline that will draw lane lines on the test_images
-    # then save them to the test_images_output directory.
-
-    # list pipeline and define dir
-    imagelist = os.listdir("test_images/")
-    dirname = 'test_images/'
-    print(imagelist)
-
-    saveimagelist = 'images_output/'
-
-    # define Global parameters
-
-    # Canny parameters
-    low_threshold = 50
-    high_threshold = 150
-
-    # Gaussian parameters
-    kernel_size = 3
-
-    # Hough parameters
-    rho = 2
-    theta = np.pi / 180
-    threshold = 15
-    min_line_len = 10  # min numbers of pixels to define the lane
-    max_line_gap = 20  # gap between lanes
-
-    # Mask parameters for trapezoid shape, values are shown in percentage to the image sizes
-    trapbottom = 0.85
-    traptop = 0.07
-    trapheight = 0.4
 
 
     def processimages(image):
@@ -242,13 +201,48 @@ class LaneFinder:
         cv2.imwrite(os.path.join(path, 'waka.jpg'), final_image)
 
 
+os.listdir("test_images/")
+
+# Build your pipeline that will draw lane lines on the test_images
+# then save them to the test_images_output directory.
+
+# list pipeline and define dir
+imagelist = os.listdir("test_images/")
+dirname = 'test_images/'
+print(imagelist)
+
+saveimagelist = 'images_output/'
+
+# define Global parameters
+
+# Canny parameters
+low_threshold = 50
+high_threshold = 150
+
+# Gaussian parameters
+kernel_size = 3
+
+# Hough parameters
+rho = 2
+theta = np.pi / 180
+threshold = 15
+min_line_len = 10  # min numbers of pixels to define the lane
+max_line_gap = 20  # gap between lanes
+
+# Mask parameters for trapezoid shape, values are shown in percentage to the image sizes
+trapbottom = 0.85
+traptop = 0.07
+trapheight = 0.4
+
+
+
 i = 0
 
 # for every image in the directory, do the investigation Always the last image will be shown in the output
 for i in range(len(imagelist)):
     image = mpimg.imread(os.path.join(dirname, imagelist[i]))
     imshape = image.shape
-    processimages(image)
-    print('image:',imagelist[i],' is:', type(image), 'with dimensions:', image.shape)
+    #processimages(image)
+
 
 
