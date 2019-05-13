@@ -5,15 +5,7 @@ import matplotlib.image as mpimg
 import numpy as np
 
 from moviepy.editor import VideoFileClip
-from IPython.display import HTML
-
-
-
-fname = "./test_images/test2.jpg"
-image = mpimg.imread(fname)
-plt.imshow(image)
-plt.show()
-
+from PerTransformer import PerTransformerClass
 
 def undistort_image(dist_img):
     dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
@@ -24,15 +16,7 @@ def undistort_image(dist_img):
 
     return undist_img
 
-
-undist_img = undistort_image(image)
-
-output_fname = "./output_images/" + fname.split('/')[-1]
-output_img = cv2.cvtColor(undist_img, cv2.COLOR_RGB2BGR)
-cv2.imwrite(output_fname, output_img)
-
-
-def binary_threshold(img, s_thresh=(120, 255), sx_thresh=(20, 100)):
+def binary_threshold(img, s_thresh, sx_thresh):
     out_img = np.copy(img)
     # Convert to HLS color space and separate the S channel
     hls = cv2.cvtColor(out_img, cv2.COLOR_RGB2HLS).astype(np.float)
@@ -61,34 +45,11 @@ def binary_threshold(img, s_thresh=(120, 255), sx_thresh=(20, 100)):
     return color_binary, combined_binary
 
 
-color_binary, combined_binary = binary_threshold(undist_img)
-
-plt.figure(figsize=(20, 10))
-plt.subplot(1, 2, 1)
-plt.title('stacked thresholded image')
-plt.imshow(color_binary)
-plt.subplot(1, 2, 2)
-plt.title('combined thresholded image')
-plt.imshow(combined_binary, cmap='gray')
-
-
-def warp(img, src, dst, inverse=False):
-    if inverse:
-        M = cv2.getPerspectiveTransform(dst, src)
-    else:
-        M = cv2.getPerspectiveTransform(src, dst)
-    transformed = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
-
-    return transformed
-
-
 src = np.float32([[200, 720], [1125, 720], [685, 450], [595, 450]])
 dst = np.float32([[320, 720], [1000, 720], [1000, 0], [320, 0]])
 
 fname = "./output_images/straight_lines1.jpg"
 src_img = mpimg.imread(fname)
-
-dst_img = warp(src_img, src, dst, False)
 
 src_pts = src.reshape((-1, 1, 2)).astype("int32")
 dst_pts = dst.reshape((-1, 1, 2)).astype("int32")
@@ -210,8 +171,6 @@ def sliding_window_search(img):
     return left_fit, right_fit, out_img
 
 
-left_fit, right_fit, out_img = sliding_window_search(binary_warped)
-
 # Generate x and y values for plotting
 ploty = np.linspace(0, out_img.shape[0] - 1, out_img.shape[0])
 left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
@@ -322,11 +281,16 @@ def process_image(image):
     alpha = 0.2
 
     undistorted = undistort_image(image)
-    _, combined_binary = binary_threshold(undistorted, (150, 255), (20, 100))
+    
+    s_thresh=(120, 255)
+    sx_thresh=(20, 100)
+    color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
 
     src = np.float32([[200, 720], [1125, 720], [685, 450], [595, 450]])
     dst = np.float32([[320, 720], [1000, 720], [1000, 0], [320, 0]])
-    binary_warped = warp(combined_binary, src, dst, False)
+    
+    binary_warped = PerTransformerClass(src, dst)
+    binary_warped = binary_warped.transform(combined_binary)
 
     left_fit, right_fit, _ = sliding_window_search(binary_warped)
 
@@ -351,7 +315,7 @@ plt.figure(figsize=(16,8))
 plt.imshow(result)
 plt.axis("off");
 
-video_output = "output_images/project_video.mp4"
-clip1 = VideoFileClip("project_video.mp4", audio=False)
-clip1_output = clip1.fl_image(process_image) #NOTE: this function expects color images!!
-clip1_output.write_videofile(video_output, audio=False)
+#video_output = "output_images/project_video.mp4"
+#clip1 = VideoFileClip("project_video.mp4", audio=False)
+#clip1_output = clip1.fl_image(process_image) #NOTE: this function expects color images!!
+#clip1_output.write_videofile(video_output, audio=False)
