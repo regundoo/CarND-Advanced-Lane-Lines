@@ -38,7 +38,79 @@ You're reading it!
 
 #### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
+The camera calibration is performed by the python file 'CameraCalibration.py' in the main directory.
+Camera calibration can be called directly over the script. The Main Lane Finder programm will also check if the camera calibration was done. If not, it will run the calibration in advance.  
+
+Step by step for camera calibration:
+1. Image pipeline for calibration images are defined and location for calibration file defined
+2. 
+
+
+... The Camera calibration matrix is stored in the CameraCalibration_pickle file.
+def calulateCalibration(CalPathImages, nx, ny):
+    objpoints = []  # 3D points in real world space
+    imgpoints = []  # 2D points in image plane
+
+    objp = np.zeros((nx * ny, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:ny, 0:nx].T.reshape(-1, 2)
+
+    images = glob.glob(CalPathImages)
+    print(images)
+
+    for fname in images:
+        img = mpimg.imread(fname)
+
+        # convert to gray
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Find the Chessboard corners
+        ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
+        print(ret)
+        print(corners)
+
+        # if found, draw corners
+        if ret == True:
+            cv2.drawChessboardCorners(img, (nx,ny), corners, ret)
+            imgpoints.append(corners)
+            objpoints.append(objp)
+            #plt.imshow(img)
+            #plt.show()
+
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, CAL_IMAGE_SIZE[:-1], None, None)
+    calibration = {'objpoints': objpoints,
+                       'imgpoints': imgpoints,
+                       'cal_images': objp,
+                       'mtx': mtx,
+                       'dist': dist,
+                       'rvecs': rvecs,
+                       'tvecs': tvecs}
+
+    return calibration
+
+
+def storeCameraCalibration():
+
+    if CALC_CAL_POINTS:
+        calibration = calulateCalibration(CalPathImages, nx, ny)
+        with open(CALIBRATION_PATH, 'wb') as f:
+            pickle.dump(calibration, file=f)
+    else:
+        with open(CALIBRATION_PATH, "rb") as f:
+            calibration = pickle.load(f)
+
+    return calibration
+
+class CameraCalibrator:
+    def __init__(self, image_size, calibration):
+
+        self.objpoints = calibration['objpoints']
+        self.imgpoints = calibration['imgpoints']
+        self.image_size = image_size
+
+        self.ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv2.calibrateCamera(self.objpoints, self.imgpoints, image_size, None, None)
+
+    def undistort(self, img):
+        return cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
 
 I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
 
