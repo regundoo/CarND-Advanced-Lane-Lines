@@ -1,15 +1,12 @@
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-import os
 import glob
 import pickle
 
+import cv2
+import numpy as np
+
 
 def CalibrateCamera():
-
-    #prepare opject points
+    # prepare opject points
     nx = 6
     ny = 9
 
@@ -32,14 +29,13 @@ def CalibrateCamera():
         ret, corners = cv2.findChessboardCorners(gray, (ny, nx), None)
 
         # If found, add object points, image points
-        if ret == True:
+        if ret:
             print('Found object points and image points in: ' + fname)
             objpoints.append(objp)
             imgpoints.append(corners)
 
-
             # Draw and display the corners
-            img = cv2.drawChessboardCorners(img, (ny, nx), corners, ret)
+            # img = cv2.drawChessboardCorners(img, (ny, nx), corners, ret)
             output_fname = './camera_cal/found/' + fname.split('\\')[-1]
             print('Write ChessboardCorners to: ' + output_fname)
 
@@ -54,18 +50,18 @@ def CalibrateCamera():
 
     print('Camera Calibration done!')
 
-    #dist_img = mpimg.imread('./camera_cal/calibration2.jpg')
+    # dist_img = mpimg.imread('./camera_cal/calibration2.jpg')
 
-    #undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
+    # undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
 
-    #plt.figure(figsize=(2, 1))
+    # plt.figure(figsize=(2, 1))
 
-    #plt.subplot(1, 2, 1)
-    #plt.title('dist')
-    #plt.imshow(dist_img)
-    #plt.axis("off")
+    # plt.subplot(1, 2, 1)
+    # plt.title('dist')
+    # plt.imshow(dist_img)
+    # plt.axis("off")
 
-    #plt.subplot(1, 2, 2)
-    #plt.title('undist')
-    #plt.imsave('output_images/calibration2.jpg', undist_img)
-    #plt.imshow(undist_img)
+    # plt.subplot(1, 2, 2)
+    # plt.title('undist')
+    # plt.imsave('output_images/calibration2.jpg', undist_img)
+    # plt.imshow(undist_img)

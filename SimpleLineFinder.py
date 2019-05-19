@@ -9,7 +9,8 @@ from moviepy.editor import VideoFileClip
 from PerTransformer import PerTransformerClass
 from CameraCalibration import CalibrateCamera
 
-#Remove distortion from images
+
+# Remove distortion from images
 def undistort_image(dist_img, show=False):
     # Read camera mtx and dist from file and safe in variable.
     dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
@@ -20,7 +21,7 @@ def undistort_image(dist_img, show=False):
     undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
 
     if show:
-        f, (ax1, ax2) = plt.subplots(1, 2, figsize=(9,6))
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 6))
         ax1.imshow(cv2.cvtColor(dist_img, cv2.COLOR_BGR2RGB))
         ax1.set_title('Original Image', fontsize=20)
         ax2.imshow(cv2.cvtColor(undist_img, cv2.COLOR_BGR2RGB))
@@ -38,9 +39,8 @@ def binary_threshold(img, s_thresh, sx_thresh):
     hls = cv2.medianBlur(hls, 5)
     s_channel = hls[:, :, 2]
 
-    b_channel = cv2.cvtColor(out_img, cv2.COLOR_RGB2Lab)
-    b_channel = b_channel[:, :, 2]
-
+    # b_channel = cv2.cvtColor(out_img, cv2.COLOR_RGB2Lab)
+    # b_channel = b_channel[:, :, 2]
 
     # Sobel x
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.float)
@@ -64,6 +64,7 @@ def binary_threshold(img, s_thresh, sx_thresh):
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 
     return color_binary, combined_binary
+
 
 def sliding_window_search(img):
     # Create an output image to draw on and  visualize the result
@@ -158,26 +159,21 @@ def sliding_window_search(img):
     return left_fit, right_fit, out_img
 
 
-
 def get_curverad(left_fit, right_fit, out_img):
-
-    lane_px_height = 275 # Manuel Value
+    lane_px_height = 275  # Manuel Value
     lane_px_width = 413  # Manuel Value
 
-    ym_per_pix = (3./lane_px_height)  # meters per pixel in y dimension
-    xm_per_pix = (3.7/lane_px_width)  # meters per pixel in x dimension
+    ym_per_pix = (3. / lane_px_height)  # meters per pixel in y dimension
+    xm_per_pix = (3.7 / lane_px_width)  # meters per pixel in x dimension
 
     ploty = np.linspace(0, out_img.shape[0] - 1, out_img.shape[0])
     y_eval = np.max(ploty)
 
-
     leftx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
     rightx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
-
     left_fit_cr = np.polyfit(ploty * ym_per_pix, leftx * xm_per_pix, 2)
     right_fit_cr = np.polyfit(ploty * ym_per_pix, rightx * xm_per_pix, 2)
-
 
     # Calculate the new radius of curvature
     left_curverad = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
@@ -187,7 +183,6 @@ def get_curverad(left_fit, right_fit, out_img):
     curverad = (left_curverad + right_curverad) / 2
 
     return curverad
-
 
 
 def get_offset(left_fit, right_fit):
@@ -206,8 +201,7 @@ def get_offset(left_fit, right_fit):
     return offset
 
 
-
-def draw_lines(warped, undist, left_fit, right_fit,src ,dst, out_img, count):
+def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count):
     # Create an image to draw the lines on
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -224,7 +218,6 @@ def draw_lines(warped, undist, left_fit, right_fit,src ,dst, out_img, count):
     # Draw the lane onto the warped blank image
     cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
 
-
     newwarp = PerTransformerClass(src, dst).inverse_transform(color_warp)
     # Combine the result with the original image
     result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
@@ -239,14 +232,14 @@ def draw_lines(warped, undist, left_fit, right_fit,src ,dst, out_img, count):
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(result, offset_text, (30, 90), font, 1, (0, 255, 0), 2)
 
-    cv2.putText(result,'%4d' % count,(5,700), font, 1,(255,255,255),2,cv2.LINE_AA)
+    cv2.putText(result, '%4d' % count, (5, 700), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
     return result
 
 
-
 last_left_fit = None
 last_right_fit = None
+
 
 def calc_warp_points():
     src = np.float32([
@@ -265,7 +258,6 @@ def calc_warp_points():
     return src, dst
 
 
-
 def process_image(image):
     """
     Execute our image processing pipeline on the provided image.
@@ -274,7 +266,6 @@ def process_image(image):
     alpha = 0.2
 
     count = 0
-    font = cv2.FONT_HERSHEY_SIMPLEX
 
     exists = os.path.isfile("./camera_cal/calibration_pickle.p")
 
@@ -300,7 +291,6 @@ def process_image(image):
         last_right_fit = right_fit
 
         result = draw_lines(binary_warped, undistorted, left_fit, right_fit, src, dst, out_img, count)
-
 
         return result
     else:
@@ -331,8 +321,6 @@ def process_image(image):
         return result
 
 
-
-
 # Run on a test image
 img = cv2.imread("test_images/test6.jpg")
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -342,9 +330,9 @@ result = process_image(img)
 plt.figure(figsize=(16, 8))
 plt.imshow(result)
 plt.show()
-plt.axis("off");
+plt.axis("off")
 
-video_output = "output_images/project_video_hard.mp4"
-clip1 = VideoFileClip("harder_challenge_video.mp4", audio=False)
-clip1_output = clip1.fl_image(process_image)
-clip1_output.write_videofile(video_output, audio=False)
+# video_output = "output_images/project_video_hard.mp4"
+# clip1 = VideoFileClip("harder_challenge_video.mp4", audio=False)
+# clip1_output = clip1.fl_image(process_image)
+# clip1_output.write_videofile(video_output, audio=False)

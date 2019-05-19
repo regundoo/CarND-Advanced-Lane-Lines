@@ -6,14 +6,14 @@ class PerTransformerClass:
         self.src = src
         self.dst = dst
         self.M = cv2.getPerspectiveTransform(src, dst)
-        #print(self.M)
+        # print(self.M)
         self.M_inv = cv2.getPerspectiveTransform(dst, src)
-        #print(self.M_inv)
+        # print(self.M_inv)
 
     def transform(self, img):
-        #print("I used transform")
+        # print("I used transform")
         return cv2.warpPerspective(img, self.M, (img.shape[1], img.shape[0]))
 
     def inverse_transform(self, img):
-        #print("I used inverse transform")
+        # print("I used inverse transform")
         return cv2.warpPerspective(img, self.M_inv, (img.shape[1], img.shape[0]))
