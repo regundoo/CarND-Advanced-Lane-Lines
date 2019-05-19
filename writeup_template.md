@@ -14,181 +14,120 @@ The following requirements are given for the advanced lane lines finder project:
 
 [//]: # (Image References)
 
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
+[image1]: ./Writeup_images/1.png 
+[image2]: ./Writeup_images/2.png 
+[image3]: ./Writeup_images/hls.png 
+[image4]: Writeup_images/combined2.png 
+[image5]: ./Writeup_images/5.png 
+[image6]: ./Writeup_images/6.png 
+[image7]: ./Writeup_images/7.png 
+[image8]: ./Writeup_images/8.png 
+[video1]: ./output_images/project_video.mp4 
 
-## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
-
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
-
+[Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 ---
-
-### Writeup / README
-
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
-
-You're reading it!
 
 ### Camera Calibration
-
-#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
-
-The camera calibration is performed by the python file 'CameraCalibration.py' in the main directory.
+The first thing that should be done is the camera calibration. The camera calibration is performed by the python file 'CameraCalibration.py' in the main directory.
 Camera calibration can be called directly over the script. The Main Lane Finder programm will also check if the camera calibration was done. If not, it will run the calibration in advance.  
 
-Step by step for camera calibration:
-1. Image pipeline for calibration images are defined and location for calibration file defined
-2. 
+The camera calibration works the following: The distorted image will be undistorted to improve the quality of geometrical measurement.
+The procedure follows the following steps:
+* The 'object points' are prepared, which will be the x, y and z coordinates of the chessboard corners in the real world. 
+The chessboard is assumed to be fixed in the z direction and the size of the chessboard is the same for all images. Therefore, the 
+object points are the same for each calibration image.
+* After transfering the calibration images into grayscale, the chessboard pattern is detected with the cv2.findChessboardCorners. 
+The found corners get appended to the list of all image points and the according 'object points' get appended to the list of object points.
+* The distortion coefficient and the camera calibration matrix are comupted with the cv2.calibrateCamera() function. The caluclated
+parameters are pickled into the CameraCalibration_pickle file for further usage.
 
 
-... The Camera calibration matrix is stored in the CameraCalibration_pickle file.
-def calulateCalibration(CalPathImages, nx, ny):
-    objpoints = []  # 3D points in real world space
-    imgpoints = []  # 2D points in image plane
+![undistortedimage][image1]
 
-    objp = np.zeros((nx * ny, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:ny, 0:nx].T.reshape(-1, 2)
+### Image Processing
 
-    images = glob.glob(CalPathImages)
-    print(images)
-
-    for fname in images:
-        img = mpimg.imread(fname)
-
-        # convert to gray
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Find the Chessboard corners
-        ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
-        print(ret)
-        print(corners)
-
-        # if found, draw corners
-        if ret == True:
-            cv2.drawChessboardCorners(img, (nx,ny), corners, ret)
-            imgpoints.append(corners)
-            objpoints.append(objp)
-            #plt.imshow(img)
-            #plt.show()
-
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, CAL_IMAGE_SIZE[:-1], None, None)
-    calibration = {'objpoints': objpoints,
-                       'imgpoints': imgpoints,
-                       'cal_images': objp,
-                       'mtx': mtx,
-                       'dist': dist,
-                       'rvecs': rvecs,
-                       'tvecs': tvecs}
-
-    return calibration
+Since we learned in the Camera Calibration that it is nessesary to undistort every incomming image. The first
+step with every image from the image pipeline is to run the function of undistort the image. The following picures
+shows an example of the original image and the same image undistorted.
+For the undistortion the calibration_pickle.p file is loaded to get all the inputs nessesary for the cv2.undistort() function.
+![undistortedimageOriginal][image2]
 
 
-def storeCameraCalibration():
+#### Thresholded for the binary image.
 
-    if CALC_CAL_POINTS:
-        calibration = calulateCalibration(CalPathImages, nx, ny)
-        with open(CALIBRATION_PATH, 'wb') as f:
-            pickle.dump(calibration, file=f)
-    else:
-        with open(CALIBRATION_PATH, "rb") as f:
-            calibration = pickle.load(f)
-
-    return calibration
-
-class CameraCalibrator:
-    def __init__(self, image_size, calibration):
-
-        self.objpoints = calibration['objpoints']
-        self.imgpoints = calibration['imgpoints']
-        self.image_size = image_size
-
-        self.ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv2.calibrateCamera(self.objpoints, self.imgpoints, image_size, None, None)
-
-    def undistort(self, img):
-        return cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
-
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
-
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
-
-![alt text][image1]
-
-### Pipeline (single images)
-
-#### 1. Provide an example of a distortion-corrected image.
-
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
-
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
-
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
-
-![alt text][image3]
-
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
-
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+Before using the threshold filtering for the images, a gaussian blurring is applied to reduce the image noice. The function used
+is the following:
 
 ```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
+def gaussian_blur(img, kernel_size):
+    return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
 ```
 
-This resulted in the following source and destination points:
+The HLS channels of the image are explored in the next step:
+![HLStransfer][image3]
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+It is seen that the L channel is very sensitive to changes in the lighting. Since I don't tune the L channel for every image,
+only the S and H channel are used for the filtering. Therefore, the two channels are combined to create the Combined_binary
+image filter. The sobel filter is also adopted to the color filtered images. 
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+![conbinedImage][image4]
 
-![alt text][image4]
+#### Perspective transformation
 
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+Next step in the image process is the perspective transformation. Therefore, the PerTransformer class is used. 
+With the cv2.warp function, the image is transferred to the bird-eye view. The class also inclueds a method for the inverse
+matrix transformation to reverse the process later on.
+![unwarpedImage][image5]
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+#### Lane Line detection and sliding window method
 
-![alt text][image5]
+With the sliding window method, the lane lines are detected from the transformed bird-eye view.
+The histogram chart of the pixel values is created in the x dimention. Only the lower half of the image is used, since
+this is the part where the lanes are. The peaks in the histogram are showing the line points. Since there are two peaks,
+the left and the right line can be found.
+![slidingwindow][image6]
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+The image is devided into 16 horizontal slices and the histogram is caluclated for each slice. All found points are fitted
+with the polyfit function to create an interpolated line that represents the acutall lane on the road.
+![slidingwindow][image7]
+Note that this image only represents the process and does not show the used 16 slinding windows in the code.
 
-I did this in lines # through # in my code in `my_other_file.py`
+#### Find the curvature of the lane and the position of the car between the lines
 
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+The curveture of the fitted functions is caluclated with the following code:
+```python
+left_curverad = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+        2 * left_fit_cr[0])
+    right_curverad = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+        2 * right_fit_cr[0])
+    curverad = (left_curverad + right_curverad) / 2
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+```
 
-![alt text][image6]
+The represented curvature on each image is the avarage of both measured curves.
+The calculated pixels are fitted to the real world with the pixel per meter mapping function.
 
----
+#### Create the processed output image
 
-### Pipeline (video)
+The processed image is warped back to the original geometry with the inverse function. All details about curvature radius and distance
+of the vihicle to the center is printed on the image itself.
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+![perfectimage][image8]
 
-Here's a [link to my video result](./project_video.mp4)
+### Video processing
 
----
+The video processing works with the same code and parameters. Each frame of the video is a single picture and can be handled
+the same way as the example pictures. After processing each single picture, they can be put back together to a video. 
+
+The output video can be found here:
+![alt text][video1]
 
 ### Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+The biggest issue in this project are sudden changes of the light condition. The code uses a lot of parameter tuning with
+trail and error. With changing conditions, this tuning is not working any more and lines get either completely lost or images
+get filled with noise. A method to compensate for the changing brightness of the images is nessesary to create a robust
+code for the changing conditions. The sliding window method works with perfect lines on the road but as soon as there are
+two lines very close together or even more lines available, you can't decide anymore which line is the correct one.
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+

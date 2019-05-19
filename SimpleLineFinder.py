@@ -31,6 +31,8 @@ def undistort_image(dist_img, show=False):
     else:
         return undist_img
 
+def gaussian_blur(img, kernel_size):
+    return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
 
 def binary_threshold(img, s_thresh, sx_thresh):
     out_img = np.copy(img)
@@ -81,7 +83,7 @@ def sliding_window_search(img):
     # print(leftx_base, rightx_base, midpoint)
 
     # Choose the number of sliding windows
-    nwindows = 16
+    nwindows = 9
     # Set height of windows
     window_height = np.int(img.shape[0] / nwindows)
     # Identify the x and y positions of all nonzero pixels in the image
@@ -266,15 +268,18 @@ def process_image(image):
     alpha = 0.2
 
     count = 0
+    kernel_size = 3
 
     exists = os.path.isfile("./camera_cal/calibration_pickle.p")
 
     if exists:
         undistorted = undistort_image(image)
 
+        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
+
         s_thresh = (120, 255)
         sx_thresh = (20, 100)
-        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
+        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
 
         src, dst = calc_warp_points()
 
@@ -297,10 +302,11 @@ def process_image(image):
         CalibrateCamera()
 
         undistorted = undistort_image(image)
+        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
         s_thresh = (180, 255)
         sx_thresh = (20, 50)
-        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
+        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
 
         src, dst = calc_warp_points()
 
@@ -322,17 +328,17 @@ def process_image(image):
 
 
 # Run on a test image
-img = cv2.imread("test_images/test6.jpg")
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+#img = cv2.imread("test_images/test6.jpg")
+#img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-result = process_image(img)
+#result = process_image(img)
 
-plt.figure(figsize=(16, 8))
-plt.imshow(result)
-plt.show()
-plt.axis("off")
+#plt.figure(figsize=(16, 8))
+#plt.imshow(result)
+#plt.show()
+#plt.axis("off")
 
-# video_output = "output_images/project_video_hard.mp4"
-# clip1 = VideoFileClip("harder_challenge_video.mp4", audio=False)
-# clip1_output = clip1.fl_image(process_image)
-# clip1_output.write_videofile(video_output, audio=False)
+video_output = "output_images/project_video.mp4"
+clip1 = VideoFileClip("challenge_video.mp4", audio=False)
+clip1_output = clip1.fl_image(process_image)
+clip1_output.write_videofile(video_output, audio=False)
