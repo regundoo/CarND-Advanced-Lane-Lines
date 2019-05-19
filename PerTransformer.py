@@ -12,8 +12,8 @@ class PerTransformerClass:
 
     def transform(self, img):
         # print("I used transform")
-        return cv2.warpPerspective(img, self.M, (img.shape[1], img.shape[0]))
+        return cv2.warpPerspective(img, self.M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
 
     def inverse_transform(self, img):
         # print("I used inverse transform")
-        return cv2.warpPerspective(img, self.M_inv, (img.shape[1], img.shape[0]))
+        return cv2.warpPerspective(img, self.M_inv, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)

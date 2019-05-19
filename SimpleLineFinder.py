@@ -7,11 +7,21 @@ import os
 
 from moviepy.editor import VideoFileClip
 from PerTransformer import PerTransformerClass
-from CameraCalibration import CalibrateCamera
+from CameraCalibration import calibrateCamera
 
 
-# Remove distortion from images
-def undistort_image(dist_img, show=False):
+class LaneFinder:
+    def __init__(self):
+        self.dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
+        self.mtx = dist_pickel["mtx"]
+        self.dist = dist_pickel["dist"]
+
+    def undistort(self, img):
+        return cv2.undistort(img, self.mtx, self.dist)
+
+
+# calculate undistorted image
+def undistort_image(dist_img, show=True):
     # Read camera mtx and dist from file and safe in variable.
     dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
     mtx = dist_pickel["mtx"]
@@ -26,8 +36,7 @@ def undistort_image(dist_img, show=False):
         ax1.set_title('Original Image', fontsize=20)
         ax2.imshow(cv2.cvtColor(undist_img, cv2.COLOR_BGR2RGB))
         ax2.set_title('Undistorted Image', fontsize=20)
-        return dist_img
-
+        return undist_img
     else:
         return undist_img
 
@@ -37,8 +46,7 @@ def gaussian_blur(img, kernel_size):
 def binary_threshold(img, s_thresh, sx_thresh):
     out_img = np.copy(img)
     # Convert to HLS color space and separate the S channel
-    hls = cv2.cvtColor(out_img, cv2.COLOR_RGB2HLS)
-    hls = cv2.medianBlur(hls, 5)
+    hls = cv2.cvtColor(out_img, cv2.COLOR_RGB2HLS).astype(np.float)
     s_channel = hls[:, :, 2]
 
     # b_channel = cv2.cvtColor(out_img, cv2.COLOR_RGB2Lab)
@@ -119,9 +127,9 @@ def sliding_window_search(img):
         cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0, 255, 0), 2)
         # Identify the nonzero pixels in x and y within the window
         good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (
-                nonzerox < win_xleft_high)).nonzero()[0]
+                    nonzerox < win_xleft_high)).nonzero()[0]
         good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (
-                nonzerox < win_xright_high)).nonzero()[0]
+                    nonzerox < win_xright_high)).nonzero()[0]
         # Append these indices to the lists
         # print(good_left_inds)
         left_lane_inds.append(good_left_inds)
@@ -162,11 +170,11 @@ def sliding_window_search(img):
 
 
 def get_curverad(left_fit, right_fit, out_img):
-    lane_px_height = 275  # Manuel Value
-    lane_px_width = 413  # Manuel Value
+    # lane_px_height = 275  # Manuel Value
+    # lane_px_width = 413  # Manuel Value
 
-    ym_per_pix = (3. / lane_px_height)  # meters per pixel in y dimension
-    xm_per_pix = (3.7 / lane_px_width)  # meters per pixel in x dimension
+    ym_per_pix = 30 / 720  # meters per pixel in y dimension
+    xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
 
     ploty = np.linspace(0, out_img.shape[0] - 1, out_img.shape[0])
     y_eval = np.max(ploty)
@@ -243,19 +251,19 @@ last_left_fit = None
 last_right_fit = None
 
 
-def calc_warp_points():
+def calc_warp_points(img_size):
     src = np.float32([
-        [220, 651],
-        [350, 577],
-        [828, 577],
-        [921, 651]
+        [545, 450],
+        [742, 450],
+        [1602, 720],
+        [-261, 720]
     ])
 
     dst = np.float32([
-        [220, 651],
-        [220, 577],
-        [921, 577],
-        [921, 651]
+        [0, 0],
+        [img_size[0], 0],
+        [img_size[0], img_size[1]],
+        [0, img_size[1]]
     ])
     return src, dst
 
@@ -269,19 +277,20 @@ def process_image(image):
 
     count = 0
     kernel_size = 3
+    img_size = (image.shape[1], image.shape[0])
 
     exists = os.path.isfile("./camera_cal/calibration_pickle.p")
 
     if exists:
         undistorted = undistort_image(image)
 
-        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
+        # gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
-        s_thresh = (120, 255)
+        s_thresh = (150, 255)
         sx_thresh = (20, 100)
-        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
+        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
 
-        src, dst = calc_warp_points()
+        src, dst = calc_warp_points(img_size)
 
         binary_warped = PerTransformerClass(src, dst)
         binary_warped = binary_warped.transform(combined_binary)
@@ -302,13 +311,13 @@ def process_image(image):
         CalibrateCamera()
 
         undistorted = undistort_image(image)
-        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
+        # gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
-        s_thresh = (180, 255)
-        sx_thresh = (20, 50)
-        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
+        s_thresh = (150, 255)
+        sx_thresh = (20, 100)
+        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
 
-        src, dst = calc_warp_points()
+        src, dst = calc_warp_points(img_size)
 
         binary_warped = PerTransformerClass(src, dst)
         binary_warped = binary_warped.transform(combined_binary)
@@ -328,17 +337,17 @@ def process_image(image):
 
 
 # Run on a test image
-#img = cv2.imread("test_images/test6.jpg")
-#img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img = cv2.imread("test_images/test4.jpg")
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-#result = process_image(img)
+result = process_image(img)
 
-#plt.figure(figsize=(16, 8))
-#plt.imshow(result)
-#plt.show()
-#plt.axis("off")
+plt.figure(figsize=(16, 8))
+plt.imshow(result)
+plt.show()
+plt.axis("off")
 
-video_output = "output_images/project_video.mp4"
-clip1 = VideoFileClip("challenge_video.mp4", audio=False)
-clip1_output = clip1.fl_image(process_image)
-clip1_output.write_videofile(video_output, audio=False)
+#video_output = "output_images/project_video.mp4"
+#clip1 = VideoFileClip("challenge_video.mp4", audio=False)
+#clip1_output = clip1.fl_image(process_image)
+#clip1_output.write_videofile(video_output, audio=False)

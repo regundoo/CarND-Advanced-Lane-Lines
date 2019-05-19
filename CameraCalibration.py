@@ -1,11 +1,10 @@
 import glob
 import pickle
-
 import cv2
 import numpy as np
 
 
-def CalibrateCamera():
+def calibrateCamera():
     # prepare opject points
     nx = 6
     ny = 9
@@ -30,7 +29,7 @@ def CalibrateCamera():
 
         # If found, add object points, image points
         if ret:
-            print('Found object points and image points in: ' + fname)
+            print('points found in: ' + fname)
             objpoints.append(objp)
             imgpoints.append(corners)
 
@@ -49,19 +48,3 @@ def CalibrateCamera():
     pickle.dump(dist_pickle, open("./camera_cal/calibration_pickle.p", "wb"))
 
     print('Camera Calibration done!')
-
-    # dist_img = mpimg.imread('./camera_cal/calibration2.jpg')
-
-    # undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
-
-    # plt.figure(figsize=(2, 1))
-
-    # plt.subplot(1, 2, 1)
-    # plt.title('dist')
-    # plt.imshow(dist_img)
-    # plt.axis("off")
-
-    # plt.subplot(1, 2, 2)
-    # plt.title('undist')
-    # plt.imsave('output_images/calibration2.jpg', undist_img)
-    # plt.imshow(undist_img)
