@@ -1,7 +1,6 @@
 import pickle
 import cv2
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import numpy as np
 import os
 
@@ -9,25 +8,14 @@ from moviepy.editor import VideoFileClip
 from PerTransformer import PerTransformerClass
 from CameraCalibration import calibrateCamera
 
-
-class LaneFinder:
-    def __init__(self):
-        self.dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
-        self.mtx = dist_pickel["mtx"]
-        self.dist = dist_pickel["dist"]
-
-    def undistort(self, img):
-        return cv2.undistort(img, self.mtx, self.dist)
-
-
 # calculate undistorted image
 def undistort_image(dist_img, show=True):
-    # Read camera mtx and dist from file and safe in variable.
+    # Read camera mtx and dist from file and safe in variable, which is safed in the calibration_pickle.p.
     dist_pickel = pickle.load(open("./camera_cal/calibration_pickle.p", "rb"))
     mtx = dist_pickel["mtx"]
     dist = dist_pickel["dist"]
 
-    # undist. the Image with given values
+    # undist the given image with this function
     undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
 
     if show:
@@ -74,7 +62,6 @@ def binary_threshold(img, s_thresh, sx_thresh):
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 
     return color_binary, combined_binary
-
 
 def sliding_window_search(img):
     # Create an output image to draw on and  visualize the result
@@ -168,7 +155,6 @@ def sliding_window_search(img):
 
     return left_fit, right_fit, out_img
 
-
 def get_curverad(left_fit, right_fit, out_img):
     # lane_px_height = 275  # Manuel Value
     # lane_px_width = 413  # Manuel Value
@@ -194,11 +180,10 @@ def get_curverad(left_fit, right_fit, out_img):
 
     return curverad
 
-
-def get_offset(left_fit, right_fit):
+def get_offset(left_fit, right_fit, img_size):
     lane_width = 3.7  # metres
-    h = 720
-    w = 1280
+    h = img_size[1]
+    w = img_size[0]
 
     left_pix = left_fit[0] * h ** 2 + left_fit[1] * h + left_fit[2]
     right_pix = right_fit[0] * h ** 2 + right_fit[1] * h + right_fit[2]
@@ -210,8 +195,7 @@ def get_offset(left_fit, right_fit):
     offset = (w / 2 - midpoint) * scale
     return offset
 
-
-def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count):
+def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count, img_size):
     # Create an image to draw the lines on
     warp_zero = np.zeros_like(warped).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -237,7 +221,7 @@ def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count):
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(result, curvature_text, (30, 60), font, 1, (0, 255, 0), 2)
 
-    offset = get_offset(left_fit, right_fit)
+    offset = get_offset(left_fit, right_fit, img_size)
     offset_text = "Lane offset  = {:.2f} m".format(offset)
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(result, offset_text, (30, 90), font, 1, (0, 255, 0), 2)
@@ -246,10 +230,8 @@ def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count):
 
     return result
 
-
 last_left_fit = None
 last_right_fit = None
-
 
 def calc_warp_points(img_size):
     src = np.float32([
@@ -269,26 +251,24 @@ def calc_warp_points(img_size):
 
 
 def process_image(image):
-    """
-    Execute our image processing pipeline on the provided image.
-    """
     global last_left_fit, last_right_fit
     alpha = 0.2
 
     count = 0
     kernel_size = 3
     img_size = (image.shape[1], image.shape[0])
+    print(img_size)
 
     exists = os.path.isfile("./camera_cal/calibration_pickle.p")
 
     if exists:
         undistorted = undistort_image(image)
 
-        # gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
+        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
         s_thresh = (150, 255)
         sx_thresh = (20, 100)
-        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
+        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
 
         src, dst = calc_warp_points(img_size)
 
@@ -304,18 +284,18 @@ def process_image(image):
         last_left_fit = left_fit
         last_right_fit = right_fit
 
-        result = draw_lines(binary_warped, undistorted, left_fit, right_fit, src, dst, out_img, count)
+        result = draw_lines(binary_warped, undistorted, left_fit, right_fit, src, dst, out_img, count, img_size)
 
         return result
     else:
-        CalibrateCamera()
+        calibrateCamera()
 
         undistorted = undistort_image(image)
-        # gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
+        gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
         s_thresh = (150, 255)
         sx_thresh = (20, 100)
-        color_binary, combined_binary = binary_threshold(undistorted, s_thresh, sx_thresh)
+        color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
 
         src, dst = calc_warp_points(img_size)
 
@@ -331,23 +311,25 @@ def process_image(image):
         last_left_fit = left_fit
         last_right_fit = right_fit
 
-        result = draw_lines(binary_warped, undistorted, left_fit, right_fit, src, dst, out_img, count)
+        result = draw_lines(binary_warped, undistorted, left_fit, right_fit, src, dst, out_img, count, img_size)
 
         return result
 
+photo = False
 
-# Run on a test image
-img = cv2.imread("test_images/test4.jpg")
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+if(photo):
+    # Run on a test image
+    img = cv2.imread("test_images/test4.jpg")
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-result = process_image(img)
+    result = process_image(img)
 
-plt.figure(figsize=(16, 8))
-plt.imshow(result)
-plt.show()
-plt.axis("off")
-
-#video_output = "output_images/project_video.mp4"
-#clip1 = VideoFileClip("challenge_video.mp4", audio=False)
-#clip1_output = clip1.fl_image(process_image)
-#clip1_output.write_videofile(video_output, audio=False)
+    plt.figure(figsize=(16, 8))
+    plt.imshow(result)
+    plt.show()
+    plt.axis("off")
+else:
+    video_output = "output_images/project_video.mp4"
+    clip1 = VideoFileClip("project_video.mp4", audio=False)
+    clip1_output = clip1.fl_image(process_image)
+    clip1_output.write_videofile(video_output, audio=False)
