@@ -8,6 +8,7 @@ from moviepy.editor import VideoFileClip
 from PerTransformer import PerTransformerClass
 from CameraCalibration import calibrateCamera
 
+
 # calculate undistorted image
 def undistort_image(dist_img, show=True):
     # Read camera mtx and dist from file and safe in variable, which is safed in the calibration_pickle.p.
@@ -28,17 +29,16 @@ def undistort_image(dist_img, show=True):
     else:
         return undist_img
 
+
 def gaussian_blur(img, kernel_size):
     return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+
 
 def binary_threshold(img, s_thresh, sx_thresh):
     out_img = np.copy(img)
     # Convert to HLS color space and separate the S channel
     hls = cv2.cvtColor(out_img, cv2.COLOR_RGB2HLS).astype(np.float)
     s_channel = hls[:, :, 2]
-
-    # b_channel = cv2.cvtColor(out_img, cv2.COLOR_RGB2Lab)
-    # b_channel = b_channel[:, :, 2]
 
     # Sobel x
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.float)
@@ -62,6 +62,7 @@ def binary_threshold(img, s_thresh, sx_thresh):
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 
     return color_binary, combined_binary
+
 
 def sliding_window_search(img):
     # Create an output image to draw on and  visualize the result
@@ -114,9 +115,9 @@ def sliding_window_search(img):
         cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0, 255, 0), 2)
         # Identify the nonzero pixels in x and y within the window
         good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (
-                    nonzerox < win_xleft_high)).nonzero()[0]
+                nonzerox < win_xleft_high)).nonzero()[0]
         good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (
-                    nonzerox < win_xright_high)).nonzero()[0]
+                nonzerox < win_xright_high)).nonzero()[0]
         # Append these indices to the lists
         # print(good_left_inds)
         left_lane_inds.append(good_left_inds)
@@ -155,6 +156,7 @@ def sliding_window_search(img):
 
     return left_fit, right_fit, out_img
 
+
 def get_curverad(left_fit, right_fit, out_img):
     # lane_px_height = 275  # Manuel Value
     # lane_px_width = 413  # Manuel Value
@@ -180,6 +182,7 @@ def get_curverad(left_fit, right_fit, out_img):
 
     return curverad
 
+
 def get_offset(left_fit, right_fit, img_size):
     lane_width = 3.7  # metres
     h = img_size[1]
@@ -194,6 +197,7 @@ def get_offset(left_fit, right_fit, img_size):
 
     offset = (w / 2 - midpoint) * scale
     return offset
+
 
 def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count, img_size):
     # Create an image to draw the lines on
@@ -230,8 +234,10 @@ def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count, im
 
     return result
 
+
 last_left_fit = None
 last_right_fit = None
+
 
 def calc_warp_points(img_size):
     src = np.float32([
@@ -315,9 +321,10 @@ def process_image(image):
 
         return result
 
+
 photo = False
 
-if(photo):
+if photo:
     # Run on a test image
     img = cv2.imread("test_images/test4.jpg")
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
