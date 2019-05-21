@@ -1,6 +1,6 @@
 import cv2
 
-
+# This class transformes the image to the corrected perspective with the warp functions
 class PerTransformerClass:
     def __init__(self, src, dst):
         self.src = src
