@@ -22,7 +22,7 @@ The following requirements are given for the advanced lane lines finder project:
 [image6]: ./Writeup_images/6.png 
 [image7]: ./Writeup_images/7.png 
 [image8]: ./Writeup_images/8.png 
-[video1]: ./output_images/project_video.mp4 
+[video1]: ./output_images/project_video.mp4 "Video"
 
 [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 ---
