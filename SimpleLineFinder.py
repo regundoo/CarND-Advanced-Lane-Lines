@@ -5,6 +5,8 @@ import numpy as np
 import os
 
 from moviepy.editor import VideoFileClip
+
+# Import camera calibration class and perspective transformation class
 from PerTransformer import PerTransformerClass
 from CameraCalibration import calibrateCamera
 
@@ -18,7 +20,8 @@ def undistort_image(dist_img, show=True):
 
     # undist the given image with this function
     undist_img = cv2.undistort(dist_img, mtx, dist, None, mtx)
-
+    
+    # if plot funciton is needed
     if show:
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 6))
         ax1.imshow(cv2.cvtColor(dist_img, cv2.COLOR_BGR2RGB))
@@ -29,15 +32,16 @@ def undistort_image(dist_img, show=True):
     else:
         return undist_img
 
-
+# add gaussian blur to the image. This improves the quality of the lines
 def gaussian_blur(img, kernel_size):
     return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
 
 
 def binary_threshold(img, s_thresh, sx_thresh):
     out_img = np.copy(img)
-    # Convert to HLS color space and separate the S channel
+    # Convert to HLS color space 
     hls = cv2.cvtColor(out_img, cv2.COLOR_RGB2HLS).astype(np.float)
+    # Separate the S channel
     s_channel = hls[:, :, 2]
 
     # Sobel x
@@ -54,10 +58,9 @@ def binary_threshold(img, s_thresh, sx_thresh):
     s_binary = np.zeros_like(s_channel)
     s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
     # Stack each channel
-    # Note color_binary[:, :, 0] is all 0s, effectively an all black image. It might
-    # be beneficial to replace this channel with something else.
     color_binary = np.dstack((np.zeros_like(sxbinary), sxbinary, s_binary))
-
+    
+    # Combine the thresholds to the combined binary image and return it
     combined_binary = np.zeros_like(sxbinary)
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 
@@ -68,7 +71,6 @@ def sliding_window_search(img):
     # Create an output image to draw on and  visualize the result
     out_img = np.dstack((img, img, img)) * 255
     # Find the peak of the left and right halves of the histogram
-    # These will be the starting point for the left and right lines
     histogram = np.sum(img[img.shape[0] // 2:, :], axis=0)
     # Find the midle of the histogram
     midpoint = np.int(histogram.shape[0] / 2)
@@ -133,12 +135,8 @@ def sliding_window_search(img):
         else:
             if len(nonzerox[np.concatenate(right_lane_inds)]):
                 rightx_current = np.int(np.mean(nonzerox[np.concatenate(right_lane_inds)]))
-        # print(nonzerox[good_right_inds])
-        # print(rightx_current)
-    # Concatenate the arrays of indices
-    # print(left_lane_inds)
+
     left_lane_inds = np.concatenate(left_lane_inds)
-    # print(left_lane_inds)
     right_lane_inds = np.concatenate(right_lane_inds)
 
     # Extract left and right line pixel positions
@@ -158,9 +156,6 @@ def sliding_window_search(img):
 
 
 def get_curverad(left_fit, right_fit, out_img):
-    # lane_px_height = 275  # Manuel Value
-    # lane_px_width = 413  # Manuel Value
-
     ym_per_pix = 30 / 720  # meters per pixel in y dimension
     xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
 
@@ -184,6 +179,7 @@ def get_curverad(left_fit, right_fit, out_img):
 
 
 def get_offset(left_fit, right_fit, img_size):
+    # caluclate the offset of the camera between the lines
     lane_width = 3.7  # metres
     h = img_size[1]
     w = img_size[0]
@@ -194,7 +190,7 @@ def get_offset(left_fit, right_fit, img_size):
     scale = lane_width / np.abs(left_pix - right_pix)
 
     midpoint = np.mean([left_pix, right_pix])
-
+    # calculate the distance from midpoint in given scale
     offset = (w / 2 - midpoint) * scale
     return offset
 
@@ -215,16 +211,16 @@ def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count, im
 
     # Draw the lane onto the warped blank image
     cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
-
+    # Transfrom the image to the given warp
     newwarp = PerTransformerClass(src, dst).inverse_transform(color_warp)
     # Combine the result with the original image
     result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
-
+    # caluclate the curvature rad
     curverad = get_curverad(left_fit, right_fit, out_img)
     curvature_text = "Curvature: " + str(np.round(curverad, 2))
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(result, curvature_text, (30, 60), font, 1, (0, 255, 0), 2)
-
+    # print the calculated values to the image as an output
     offset = get_offset(left_fit, right_fit, img_size)
     offset_text = "Lane offset  = {:.2f} m".format(offset)
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -238,7 +234,7 @@ def draw_lines(warped, undist, left_fit, right_fit, src, dst, out_img, count, im
 last_left_fit = None
 last_right_fit = None
 
-
+# Define src and dst matrix for image warp
 def calc_warp_points(img_size):
     src = np.float32([
         [545, 450],
@@ -257,27 +253,32 @@ def calc_warp_points(img_size):
 
 
 def process_image(image):
+    # This function processes all the images
+    # It checkes if camera calibration output is available. If not, the calibraiton will be performed first
     global last_left_fit, last_right_fit
     alpha = 0.2
 
     count = 0
     kernel_size = 3
     img_size = (image.shape[1], image.shape[0])
-    print(img_size)
+    # print(img_size)
 
     exists = os.path.isfile("./camera_cal/calibration_pickle.p")
 
     if exists:
+        # undistored the images
         undistorted = undistort_image(image)
-
+        # add gaussian blur 
         gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
         s_thresh = (150, 255)
         sx_thresh = (20, 100)
+        
+        # get thoreshold images
         color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
-
+        # get src and dst from def
         src, dst = calc_warp_points(img_size)
-
+        # warp the image with pertransformerclass
         binary_warped = PerTransformerClass(src, dst)
         binary_warped = binary_warped.transform(combined_binary)
 
@@ -294,17 +295,20 @@ def process_image(image):
 
         return result
     else:
+        # perform camera calibration
         calibrateCamera()
-
+        # undistored the images
         undistorted = undistort_image(image)
+        # add gaussian blur 
         gaussian_blurimage = gaussian_blur(undistorted, kernel_size)
 
         s_thresh = (150, 255)
         sx_thresh = (20, 100)
+        # get thoreshold images
         color_binary, combined_binary = binary_threshold(gaussian_blurimage, s_thresh, sx_thresh)
-
+        # get src and dst from def
         src, dst = calc_warp_points(img_size)
-
+        # warp the image with pertransformerclass
         binary_warped = PerTransformerClass(src, dst)
         binary_warped = binary_warped.transform(combined_binary)
 
@@ -321,7 +325,7 @@ def process_image(image):
 
         return result
 
-
+# decide if the test image shall be used or the project video processed
 photo = False
 
 if photo:
