@@ -120,7 +120,7 @@ The video processing works with the same code and parameters. Each frame of the 
 the same way as the example pictures. After processing each single picture, they can be put back together to a video. 
 
 The output video can be found here:
-![alt text][video1]
+![Project Video][video1]
 
 ### Discussion
 
